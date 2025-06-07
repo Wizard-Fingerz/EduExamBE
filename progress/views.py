@@ -11,6 +11,8 @@ from django.db import models
 from rest_framework.exceptions import PermissionDenied
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.db.models import Count, Avg, Max
+from datetime import timedelta
 
 # Create your views here.
 
@@ -176,3 +178,147 @@ class ExamProgressDetailView(generics.RetrieveUpdateAPIView):
         if getattr(self, 'swagger_fake_view', False):
             return ExamProgress.objects.none()
         return ExamProgress.objects.filter(student=self.request.user)
+
+class LearningJourneyStatsView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        
+        # Get overall statistics
+        total_courses = CourseProgress.objects.filter(student=user).count()
+        completed_courses = CourseProgress.objects.filter(student=user, is_completed=True).count()
+        total_lessons = LessonProgress.objects.filter(student=user).count()
+        completed_lessons = LessonProgress.objects.filter(student=user, is_completed=True).count()
+        total_exams = ExamProgress.objects.filter(student=user).count()
+        
+        # Calculate average scores
+        avg_exam_score = ExamProgress.objects.filter(
+            student=user,
+            best_score__isnull=False
+        ).aggregate(avg_score=Avg('best_score'))['avg_score'] or 0
+        
+        # Get time spent learning
+        total_time_spent = LessonProgress.objects.filter(
+            student=user
+        ).aggregate(total_time=models.Sum('time_spent'))['total_time'] or timedelta()
+        
+        # Get recent activity (last 7 days)
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        recent_lessons = LessonProgress.objects.filter(
+            student=user,
+            updated_at__gte=seven_days_ago
+        ).count()
+        
+        return Response({
+            'total_courses': total_courses,
+            'completed_courses': completed_courses,
+            'total_lessons': total_lessons,
+            'completed_lessons': completed_lessons,
+            'total_exams': total_exams,
+            'average_exam_score': round(avg_exam_score, 2),
+            'total_time_spent': str(total_time_spent),
+            'recent_activity': {
+                'lessons_completed': recent_lessons,
+                'days_active': 7
+            }
+        })
+
+class RecentActivityView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        recent_activities = []
+        
+        # Get recent lesson completions
+        recent_lessons = LessonProgress.objects.filter(
+            student=user,
+            is_completed=True
+        ).order_by('-completed_at')[:5]
+        
+        for lesson in recent_lessons:
+            recent_activities.append({
+                'type': 'lesson',
+                'title': lesson.lesson.title,
+                'timestamp': lesson.completed_at,
+                'course': lesson.lesson.module.course.title
+            })
+        
+        # Get recent exam attempts
+        recent_exams = ExamProgress.objects.filter(
+            student=user,
+            last_attempt__isnull=False
+        ).order_by('-last_attempt')[:5]
+        
+        for exam in recent_exams:
+            recent_activities.append({
+                'type': 'exam',
+                'title': exam.exam.title,
+                'timestamp': exam.last_attempt,
+                'score': exam.best_score
+            })
+        
+        # Sort by timestamp
+        recent_activities.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return Response(recent_activities[:10])  # Return top 10 most recent activities
+
+class LearningPathView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, course_id, *args, **kwargs):
+        user = request.user
+        
+        try:
+            course_progress = CourseProgress.objects.get(
+                student=user,
+                course_id=course_id
+            )
+        except CourseProgress.DoesNotExist:
+            return Response(
+                {'error': 'Course progress not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get all lessons in the course
+        lessons = course_progress.course.modules.prefetch_related('lessons').all()
+        
+        learning_path = []
+        for module in lessons:
+            module_path = {
+                'module': module.title,
+                'lessons': []
+            }
+            
+            for lesson in module.lessons.all():
+                try:
+                    lesson_progress = LessonProgress.objects.get(
+                        student=user,
+                        lesson=lesson
+                    )
+                    lesson_status = {
+                        'id': lesson.id,
+                        'title': lesson.title,
+                        'is_completed': lesson_progress.is_completed,
+                        'time_spent': str(lesson_progress.time_spent),
+                        'last_position': lesson_progress.last_position
+                    }
+                except LessonProgress.DoesNotExist:
+                    lesson_status = {
+                        'id': lesson.id,
+                        'title': lesson.title,
+                        'is_completed': False,
+                        'time_spent': '0:00:00',
+                        'last_position': 0
+                    }
+                
+                module_path['lessons'].append(lesson_status)
+            
+            learning_path.append(module_path)
+        
+        return Response({
+            'course': course_progress.course.title,
+            'progress_percentage': course_progress.progress_percentage,
+            'learning_path': learning_path
+        })

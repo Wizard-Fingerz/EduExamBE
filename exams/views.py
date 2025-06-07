@@ -21,12 +21,16 @@ class ExamListView(generics.ListCreateAPIView):
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return Exam.objects.none()
-            
+        
         user = self.request.user
-        if user.user_type == 'teacher':
-            return Exam.objects.filter(course__instructor=user)
-        elif user.user_type == 'student':
-            return Exam.objects.filter(course__students=user)
+        if not user.is_authenticated:
+            return Exam.objects.none()
+        if hasattr(user, 'user_type'):
+            if user.user_type == 'teacher':
+                return Exam.objects.filter(course__instructor=user)
+            elif user.user_type == 'student':
+                # Only exams for courses the student is enrolled in
+                return Exam.objects.filter(course__students=user)
         return Exam.objects.none()
     
     def get_serializer_class(self):
@@ -120,7 +124,7 @@ class ExamAttemptView(generics.CreateAPIView):
     def perform_create(self, serializer):
         exam = Exam.objects.get(id=self.kwargs['pk'])
         if exam.course.students.filter(id=self.request.user.id).exists():
-            serializer.save(student=self.request.user, exam=exam)
+            serializer.save(student=self.request.user, exam=exam)  # Pass exam here
         else:
             raise permissions.PermissionDenied("You are not enrolled in this course.")
 

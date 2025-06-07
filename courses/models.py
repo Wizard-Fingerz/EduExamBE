@@ -10,6 +10,7 @@ class Course(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False)
+    passing_score = models.PositiveIntegerField(default=50)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
     def __str__(self):

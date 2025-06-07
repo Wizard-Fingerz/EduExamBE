@@ -67,7 +67,7 @@ class CourseListView(generics.ListAPIView):
         if user.user_type == 'teacher':
             return queryset.filter(instructor=user)
         elif user.user_type == 'student':
-            return queryset.filter(students=user)
+            return queryset
         return queryset.none()
 
 class CourseDetailView(generics.RetrieveAPIView):
@@ -104,12 +104,12 @@ class CourseDeleteView(generics.DestroyAPIView):
             return Course.objects.none()
         return Course.objects.filter(instructor=self.request.user)
 
-class CourseEnrollView(generics.UpdateAPIView):
+class CourseEnrollView(generics.GenericAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [permissions.IsAuthenticated]
     
-    def update(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         course = self.get_object()
         if request.user in course.students.all():
             return Response(
@@ -118,6 +118,16 @@ class CourseEnrollView(generics.UpdateAPIView):
             )
         course.students.add(request.user)
         return Response(self.get_serializer(course).data)
+
+    def delete(self, request, *args, **kwargs):
+        course = self.get_object()
+        if request.user not in course.students.all():
+            return Response(
+                {"detail": "You are not enrolled in this course."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        course.students.remove(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class ModuleListView(generics.ListCreateAPIView):
     serializer_class = ModuleSerializer

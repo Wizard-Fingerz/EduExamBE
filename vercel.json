@@ -1,9 +1,12 @@
 {
-    "version": 2,
     "builds": [
         {
             "src": "elearning/wsgi.py",
-            "use": "@vercel/python"
+            "use": "@vercel/python",
+            "config": {
+                "runtime": "python3.9",
+                "outputDirectory": "staticfiles"
+            }
         }
     ],
     "routes": [
@@ -11,5 +14,6 @@
             "src": "/(.*)",
             "dest": "elearning/wsgi.py"
         }
-    ]
-} 
+    ],
+    "buildCommand": "python manage.py collectstatic --noinput && python manage.py makemigrations --noinput && python manage.py migrate --noinput"
+}

@@ -48,6 +48,7 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = ('question', 'answer_text')
 
 class ExamAttemptSerializer(serializers.ModelSerializer):
+    exam = serializers.PrimaryKeyRelatedField(read_only=True)
     answers = AnswerSerializer(many=True, read_only=True)
     
     class Meta:
@@ -70,4 +71,4 @@ class ExamSubmissionSerializer(serializers.Serializer):
         if answered_questions != exam_questions:
             raise serializers.ValidationError("All questions must be answered.")
         
-        return data 
+        return data
