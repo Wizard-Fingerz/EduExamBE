@@ -1,10 +1,10 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
-from .models import Course, Module, Lesson
+from .models import Course, Module, Lesson, CourseEnrollment
 from .serializers import (
     CourseSerializer, CourseCreateSerializer,
     ModuleSerializer, ModuleCreateSerializer,
@@ -12,6 +12,9 @@ from .serializers import (
 )
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.db.models import Avg, Count
+from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
 
 # Create your views here.
 
@@ -108,7 +111,7 @@ class CourseEnrollView(generics.GenericAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request, *args, **kwargs):
         course = self.get_object()
         if request.user in course.students.all():
@@ -120,6 +123,21 @@ class CourseEnrollView(generics.GenericAPIView):
         return Response(self.get_serializer(course).data)
 
     def delete(self, request, *args, **kwargs):
+        course = self.get_object()
+        if request.user not in course.students.all():
+            return Response(
+                {"detail": "You are not enrolled in this course."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        course.students.remove(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class CourseUnenrollView(generics.GenericAPIView):
+    queryset = Course.objects.all()
+    serializer_class = CourseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
         course = self.get_object()
         if request.user not in course.students.all():
             return Response(
@@ -188,3 +206,164 @@ class LessonDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in ['PUT', 'PATCH']:
             return LessonCreateSerializer
         return LessonSerializer
+
+class StaffCourseListView(generics.ListAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.user_type != 'teacher':
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        return Course.objects.filter(instructor=self.request.user)
+
+class StaffCourseDetailView(generics.RetrieveAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        course = get_object_or_404(Course, pk=self.kwargs['pk'])
+        if self.request.user.user_type != 'teacher' or course.instructor != self.request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        return course
+
+class StaffCourseCreateView(generics.CreateAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        if self.request.user.user_type != 'teacher':
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        serializer.save(instructor=self.request.user)
+
+class StaffCourseUpdateView(generics.UpdateAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        course = get_object_or_404(Course, pk=self.kwargs['pk'])
+        if self.request.user.user_type != 'teacher' or course.instructor != self.request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        return course
+
+class StaffCourseDeleteView(generics.DestroyAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        course = get_object_or_404(Course, pk=self.kwargs['pk'])
+        if self.request.user.user_type != 'teacher' or course.instructor != self.request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        return course
+
+class StaffCourseStudentsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        course = get_object_or_404(Course, pk=pk)
+        if request.user.user_type != 'teacher' or course.instructor != request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        students = course.students.all()
+        return Response({
+            'total_students': students.count(),
+            'students': [
+                {
+                    'id': student.id,
+                    'username': student.username,
+                    'email': student.email,
+                    'first_name': student.first_name,
+                    'last_name': student.last_name,
+                    'enrolled_at': student.enrollment_set.get(course=course).enrolled_at
+                }
+                for student in students
+            ]
+        })
+
+class StaffCourseAnalyticsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        course = get_object_or_404(Course, pk=pk)
+        if request.user.user_type != 'teacher' or course.instructor != request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        total_students = course.students.count()
+        total_revenue = course.price * total_students
+        average_rating = course.reviews.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0
+
+        return Response({
+            'total_students': total_students,
+            'total_revenue': total_revenue,
+            'average_rating': average_rating,
+            'enrollment_trend': {
+                'last_30_days': course.enrollment_set.filter(
+                    enrolled_at__gte=timezone.now() - timezone.timedelta(days=30)
+                ).count()
+            }
+        })
+
+class CourseStudentsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            course = Course.objects.get(pk=pk)
+            if request.user.user_type == 'teacher' and course.instructor != request.user:
+                return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+            
+            students = course.students.all()
+            return Response({
+                'course': course.title,
+                'students': [
+                    {
+                        'id': student.id,
+                        'username': student.username,
+                        'email': student.email,
+                        'enrollment_date': CourseEnrollment.objects.get(
+                            student=student,
+                            course=course
+                        ).enrollment_date
+                    }
+                    for student in students
+                ]
+            })
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=404)
+
+class CourseAnalyticsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            course = Course.objects.get(pk=pk)
+            if request.user.user_type == 'teacher' and course.instructor != request.user:
+                return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+            
+            total_students = course.students.count()
+            total_revenue = total_students * course.price
+            average_rating = course.ratings.aggregate(Avg('rating'))['rating__avg'] or 0
+            
+            # Get enrollment trends (last 6 months)
+            six_months_ago = timezone.now() - timezone.timedelta(days=180)
+            enrollments = CourseEnrollment.objects.filter(
+                course=course,
+                enrollment_date__gte=six_months_ago
+            ).values('enrollment_date__month').annotate(
+                count=Count('id')
+            ).order_by('enrollment_date__month')
+            
+            return Response({
+                'course': course.title,
+                'total_students': total_students,
+                'total_revenue': total_revenue,
+                'average_rating': average_rating,
+                'enrollment_trends': [
+                    {
+                        'month': enrollment['enrollment_date__month'],
+                        'count': enrollment['count']
+                    }
+                    for enrollment in enrollments
+                ]
+            })
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=404)

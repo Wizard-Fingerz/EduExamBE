@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
@@ -11,6 +11,9 @@ from .serializers import (
 )
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework.views import APIView
+from courses.models import Course
+from django.db.models import Avg, Count
 
 # Create your views here.
 
@@ -146,3 +149,76 @@ class ExamSubmissionView(generics.CreateAPIView):
         if attempt.is_completed:
             raise permissions.PermissionDenied("This exam attempt has already been completed.")
         serializer.save(attempt=attempt)
+
+class StaffExamListView(generics.ListAPIView):
+    serializer_class = ExamSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.user_type != 'teacher':
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        return Exam.objects.filter(course__instructor=self.request.user)
+
+class StaffExamDetailView(generics.RetrieveAPIView):
+    serializer_class = ExamSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        exam = get_object_or_404(Exam, pk=self.kwargs['pk'])
+        if self.request.user.user_type != 'teacher' or exam.course.instructor != self.request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        return exam
+
+class StaffExamCreateView(generics.CreateAPIView):
+    serializer_class = ExamSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        if self.request.user.user_type != 'teacher':
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        course = get_object_or_404(Course, pk=self.request.data.get('course'))
+        if course.instructor != self.request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        serializer.save()
+
+class StaffExamUpdateView(generics.UpdateAPIView):
+    serializer_class = ExamSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        exam = get_object_or_404(Exam, pk=self.kwargs['pk'])
+        if self.request.user.user_type != 'teacher' or exam.course.instructor != self.request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        return exam
+
+class StaffExamDeleteView(generics.DestroyAPIView):
+    serializer_class = ExamSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        exam = get_object_or_404(Exam, pk=self.kwargs['pk'])
+        if self.request.user.user_type != 'teacher' or exam.course.instructor != self.request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        return exam
+
+class StaffExamAnalyticsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        exam = get_object_or_404(Exam, pk=pk)
+        if request.user.user_type != 'teacher' or exam.course.instructor != request.user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        attempts = ExamAttempt.objects.filter(exam=exam)
+        total_attempts = attempts.count()
+        completed_attempts = attempts.filter(submitted_at__isnull=False).count()
+        average_score = attempts.filter(submitted_at__isnull=False).aggregate(
+            avg_score=Avg('score')
+        )['avg_score'] or 0
+
+        return Response({
+            'total_attempts': total_attempts,
+            'completed_attempts': completed_attempts,
+            'average_score': average_score,
+            'passing_rate': (attempts.filter(score__gte=exam.passing_marks).count() / completed_attempts * 100) if completed_attempts > 0 else 0
+        })

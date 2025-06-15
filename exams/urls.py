@@ -12,4 +12,12 @@ urlpatterns = [
     path('<int:pk>/attempt/', views.ExamAttemptView.as_view(), name='exam-attempt'),
     path('attempts/<int:pk>/', views.ExamAttemptDetailView.as_view(), name='attempt-detail'),
     path('attempts/<int:pk>/submit/', views.ExamSubmissionView.as_view(), name='exam-submit'),
+    
+    # Staff-specific endpoints
+    path('staff/', views.StaffExamListView.as_view(), name='staff-exam-list'),
+    path('staff/<int:pk>/', views.StaffExamDetailView.as_view(), name='staff-exam-detail'),
+    path('staff/courses/<int:course_id>/exams/create/', views.StaffExamCreateView.as_view(), name='staff-exam-create'),
+    path('staff/<int:pk>/update/', views.StaffExamUpdateView.as_view(), name='staff-exam-update'),
+    path('staff/<int:pk>/delete/', views.StaffExamDeleteView.as_view(), name='staff-exam-delete'),
+    path('staff/<int:pk>/analytics/', views.StaffExamAnalyticsView.as_view(), name='staff-exam-analytics'),
 ] 
