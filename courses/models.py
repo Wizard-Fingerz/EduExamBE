@@ -12,7 +12,7 @@ class Course(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     category = models.CharField(max_length=100)
     level = models.CharField(max_length=50)
-    duration = models.IntegerField(help_text="Duration in hours", null=True, blank=True)
+    duration = models.DurationField(help_text="Duration in hours", null=True, blank=True)
     thumbnail = models.ImageField(upload_to='course_thumbnails/', null=True, blank=True)
     is_published = models.BooleanField(default=False)
     ratings = models.ManyToManyField(settings.AUTH_USER_MODEL, through='CourseRating', related_name='rated_courses')
