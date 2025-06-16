@@ -213,8 +213,18 @@ class StaffCourseListView(generics.ListAPIView):
 
     def get_queryset(self):
         if self.request.user.user_type != 'teacher':
-            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+            raise PermissionDenied("Only teachers can access this endpoint")
         return Course.objects.filter(instructor=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        except PermissionDenied as e:
+            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class StaffCourseDetailView(generics.RetrieveAPIView):
     serializer_class = CourseSerializer

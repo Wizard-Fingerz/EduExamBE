@@ -132,7 +132,43 @@ class CourseProgressListView(generics.ListAPIView):
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return CourseProgress.objects.none()
-        return CourseProgress.objects.filter(student=self.request.user)
+            
+        try:
+            # Get all course progress for the user
+            queryset = CourseProgress.objects.filter(student=self.request.user)
+            
+            # Prefetch related course data to avoid N+1 queries
+            queryset = queryset.select_related('course')
+            
+            # Annotate with additional data
+            queryset = queryset.annotate(
+                total_lessons=models.Count('course__modules__lessons'),
+                completed_lessons_count=models.Count('completed_lessons'),
+            )
+            
+            # Calculate progress percentage
+            for progress in queryset:
+                if progress.total_lessons > 0:
+                    progress.progress_percentage = (progress.completed_lessons_count / progress.total_lessons) * 100
+                else:
+                    progress.progress_percentage = 0
+                progress.save()
+            
+            return queryset
+        except Exception as e:
+            print(f"Error in CourseProgressListView: {str(e)}")
+            return CourseProgress.objects.none()
+    
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response(
+                {"detail": f"Error fetching course progress: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class CourseProgressDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = CourseProgressSerializer
