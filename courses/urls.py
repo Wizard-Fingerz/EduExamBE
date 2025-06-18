@@ -24,4 +24,23 @@ urlpatterns = [
     path('modules/<int:pk>/', views.ModuleDetailView.as_view(), name='module-detail'),
     path('modules/<int:pk>/lessons/', views.LessonListView.as_view(), name='lesson-list'),
     path('lessons/<int:pk>/', views.LessonDetailView.as_view(), name='lesson-detail'),
+    
+    # Assignment endpoints
+    path('assignments/', views.AssignmentListView.as_view(), name='assignment-list'),
+    path('assignments/<int:pk>/', views.AssignmentDetailView.as_view(), name='assignment-detail'),
+    path('assignments/create/', views.AssignmentCreateView.as_view(), name='assignment-create'),
+    path('assignments/<int:pk>/update/', views.AssignmentUpdateView.as_view(), name='assignment-update'),
+    path('assignments/<int:pk>/delete/', views.AssignmentDeleteView.as_view(), name='assignment-delete'),
+    path('assignments/<int:pk>/questions/', views.AssignmentQuestionListView.as_view(), name='assignment-question-list'),
+    path('assignment-questions/<int:pk>/', views.AssignmentQuestionDetailView.as_view(), name='assignment-question-detail'),
+    
+    # Staff-specific assignment endpoints
+    path('staff/assignments/', views.StaffAssignmentListView.as_view(), name='staff-assignment-list'),
+    path('staff/assignments/<int:pk>/', views.StaffAssignmentDetailView.as_view(), name='staff-assignment-detail'),
+    path('staff/courses/<int:course_id>/assignments/create/', views.StaffAssignmentCreateView.as_view(), name='staff-assignment-create'),
+    path('staff/assignments/<int:pk>/update/', views.StaffAssignmentUpdateView.as_view(), name='staff-assignment-update'),
+    path('staff/assignments/<int:pk>/delete/', views.StaffAssignmentDeleteView.as_view(), name='staff-assignment-delete'),
+    path('staff/assignments/<int:pk>/analytics/', views.StaffAssignmentAnalyticsView.as_view(), name='staff-assignment-analytics'),
+    path('staff/assignments/<int:pk>/questions/', views.AssignmentQuestionListView.as_view(), name='staff-assignment-question-list'),
+    path('staff/assignment-questions/<int:pk>/', views.AssignmentQuestionDetailView.as_view(), name='staff-assignment-question-detail'),
 ] 

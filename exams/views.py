@@ -98,7 +98,9 @@ class QuestionListView(generics.ListCreateAPIView):
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return Question.objects.none()
-        return Question.objects.filter(exam_id=self.kwargs['pk'])
+        # Handle both 'pk' and 'exam_id' URL parameters
+        exam_id = self.kwargs.get('pk') or self.kwargs.get('exam_id')
+        return Question.objects.filter(exam_id=exam_id)
     
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -106,7 +108,9 @@ class QuestionListView(generics.ListCreateAPIView):
         return QuestionSerializer
     
     def perform_create(self, serializer):
-        exam = Exam.objects.get(id=self.kwargs['pk'])
+        # Handle both 'pk' and 'exam_id' URL parameters
+        exam_id = self.kwargs.get('pk') or self.kwargs.get('exam_id')
+        exam = Exam.objects.get(id=exam_id)
         if exam.course.instructor != self.request.user:
             raise permissions.PermissionDenied("Only the course instructor can add questions.")
         serializer.save(exam=exam)

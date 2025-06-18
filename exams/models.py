@@ -40,7 +40,7 @@ class Question(models.Model):
 
 class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='choices')
-    choice_text = models.CharField(max_length=200)
+    choice_text = models.CharField(max_length=200, blank=True, null= True)
     is_correct = models.BooleanField(default=False)
     
     def __str__(self):

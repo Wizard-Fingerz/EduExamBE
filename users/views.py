@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from .serializers import UserRegistrationSerializer, UserProfileSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
-from courses.models import Course
+from courses.models import Course, CourseEnrollment
 from exams.models import Exam
 from progress.models import CourseProgress
 from django.db.models import Avg, Sum
@@ -59,6 +59,49 @@ class StaffProfileUpdateView(generics.UpdateAPIView):
         if self.request.user.user_type != 'teacher':
             return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
         return self.request.user
+
+class StaffStudentsView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    
+    def get(self, request):
+        if request.user.user_type != 'teacher':
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        students = User.objects.filter(user_type='student').order_by('first_name', 'last_name')
+        
+        student_data = []
+        for student in students:
+            # Get enrollment info using CourseEnrollment model directly
+            enrollments = CourseEnrollment.objects.filter(student=student)
+            total_courses = enrollments.count()
+            
+            # Calculate GPA (average of all course progress percentages)
+            course_progresses = CourseProgress.objects.filter(student=student)
+            if course_progresses.exists():
+                avg_progress = course_progresses.aggregate(Avg('progress_percentage'))['progress_percentage__avg'] or 0
+                gpa = (avg_progress / 100) * 4.0  # Convert percentage to 4.0 scale
+            else:
+                gpa = 0.0
+            
+            # Get enrollment date (earliest enrollment)
+            if enrollments.exists():
+                enrollment_date = enrollments.earliest('enrollment_date').enrollment_date
+            else:
+                enrollment_date = student.date_joined
+            
+            student_data.append({
+                'id': student.id,
+                'name': f"{student.first_name} {student.last_name}",
+                'email': student.email,
+                'studentId': student.username,  # Using username as student ID
+                'enrollmentDate': enrollment_date.isoformat(),
+                'program': 'General Studies',  # Default program
+                'status': 'Active' if student.is_active else 'Inactive',
+                'gpa': round(gpa, 2),
+                'totalCourses': total_courses,
+            })
+        
+        return Response(student_data)
 
 class StaffDashboardStatsView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
