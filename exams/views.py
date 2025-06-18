@@ -7,7 +7,8 @@ from .models import Exam, Question, ExamAttempt, Answer
 from .serializers import (
     ExamSerializer, ExamCreateSerializer,
     QuestionSerializer, QuestionCreateSerializer,
-    ExamAttemptSerializer, ExamSubmissionSerializer
+    ExamAttemptSerializer, ExamSubmissionSerializer,
+    StaffExamCreateSerializer
 )
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -170,16 +171,27 @@ class StaffExamDetailView(generics.RetrieveAPIView):
         return exam
 
 class StaffExamCreateView(generics.CreateAPIView):
-    serializer_class = ExamSerializer
+    serializer_class = StaffExamCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
         if self.request.user.user_type != 'teacher':
-            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
-        course = get_object_or_404(Course, pk=self.request.data.get('course'))
+            raise PermissionDenied("Only teachers can create exams.")
+        
+        course_id = self.request.data.get('course')
+        if not course_id:
+            raise PermissionDenied("Course ID is required.")
+        
+        try:
+            course = Course.objects.get(pk=course_id)
+        except Course.DoesNotExist:
+            raise PermissionDenied("Course not found.")
+        
         if course.instructor != self.request.user:
-            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
-        serializer.save()
+            raise PermissionDenied("You can only create exams for your own courses.")
+        
+        # Save the exam with the course
+        serializer.save(course=course)
 
 class StaffExamUpdateView(generics.UpdateAPIView):
     serializer_class = ExamSerializer

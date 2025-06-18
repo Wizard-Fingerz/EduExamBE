@@ -40,6 +40,12 @@ class ExamCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Exam
         fields = ('title', 'description', 'duration', 'total_marks', 'passing_marks',
+                 'start_time', 'end_time', 'is_published', 'course')
+
+class StaffExamCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Exam
+        fields = ('title', 'description', 'duration', 'total_marks', 'passing_marks',
                  'start_time', 'end_time', 'is_published')
 
 class AnswerSerializer(serializers.ModelSerializer):
