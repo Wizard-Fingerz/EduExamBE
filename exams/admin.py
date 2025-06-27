@@ -16,7 +16,7 @@ class QuestionResource(resources.ModelResource):
 class ExamResource(resources.ModelResource):
     class Meta:
         model = Exam
-        fields = ('id', 'course', 'title', 'description', 'duration', 'total_marks',
+        fields = ('id', 'subject', 'title', 'description', 'duration', 'total_marks',
                  'passing_marks', 'start_time', 'end_time', 'is_published',
                  'created_at', 'updated_at')
         export_order = fields
@@ -37,11 +37,11 @@ class AnswerResource(resources.ModelResource):
 @admin.register(Exam)
 class ExamAdmin(ImportExportModelAdmin):
     resource_class = ExamResource
-    list_display = ('title', 'course', 'start_time', 'end_time', 'is_published')
-    list_filter = ('is_published', 'course')
+    list_display = ('title', 'subject', 'start_time', 'end_time', 'is_published')
+    list_filter = ('is_published', 'subject')
     search_fields = ('title', 'description')
     ordering = ('-start_time',)
-    raw_id_fields = ('course',)
+    raw_id_fields = ('subject',)
 
 @admin.register(Question)
 class QuestionAdmin(ImportExportModelAdmin):

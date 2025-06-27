@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from .serializers import UserRegistrationSerializer, UserProfileSerializer
+from .serializers import UserRegistrationSerializer, UserProfileSerializer, ExaminationTypeSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from courses.models import Course, CourseEnrollment
@@ -10,6 +10,7 @@ from exams.models import Exam
 from progress.models import CourseProgress
 from django.db.models import Avg, Sum
 from django.utils import timezone
+from .models import ExaminationType
 
 User = get_user_model()
 
@@ -145,3 +146,8 @@ class StaffDashboardStatsView(APIView):
             'recent_enrollments': recent_enrollments,
             'total_revenue': total_revenue
         })
+
+class ExaminationTypeListView(generics.ListAPIView):
+    queryset = ExaminationType.objects.all()
+    serializer_class = ExaminationTypeSerializer
+    permission_classes = (permissions.AllowAny,)

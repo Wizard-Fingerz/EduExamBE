@@ -43,9 +43,22 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
+class ExaminationTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User._meta.get_field('examination_type').related_model
+        fields = ('id', 'name')
+
 class UserProfileSerializer(serializers.ModelSerializer):
+    examination_type = ExaminationTypeSerializer(read_only=True)
+    examination_type_id = serializers.PrimaryKeyRelatedField(
+        queryset=User._meta.get_field('examination_type').related_model.objects.all(),
+        source='examination_type',
+        write_only=True,
+        required=False
+    )
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 'user_type',
-                 'profile_picture', 'bio', 'date_of_birth', 'phone_number', 'address')
+                 'profile_picture', 'bio', 'date_of_birth', 'phone_number', 'address',
+                 'institution_name', 'examination_type', 'examination_type_id', 'grade')
         read_only_fields = ('id', 'username', 'user_type') 

@@ -1,5 +1,13 @@
 from django.urls import path
 from . import views
+from .subjects.views import SubjectViewSet
+
+from rest_framework import routers
+
+
+router = routers.DefaultRouter()
+router.register(r'subjects', SubjectViewSet, basename='subjects')
+
 
 urlpatterns = [
     path('', views.CourseListView.as_view(), name='course-list'),
@@ -14,6 +22,7 @@ urlpatterns = [
     
     # Staff-specific endpoints
     path('staff/', views.StaffCourseListView.as_view(), name='staff-course-list'),
+    path('subjects/', views.StaffSubjectViewSet.as_view(), name='staff-subject-list'),
     path('staff/<int:pk>/', views.StaffCourseDetailView.as_view(), name='staff-course-detail'),
     path('staff/create/', views.StaffCourseCreateView.as_view(), name='staff-course-create'),
     path('staff/<int:pk>/update/', views.StaffCourseUpdateView.as_view(), name='staff-course-update'),

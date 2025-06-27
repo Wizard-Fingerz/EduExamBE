@@ -1,6 +1,11 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from .subjects.models import Subject
+
+
+
+
 
 class Course(models.Model):
     title = models.CharField(max_length=200)
@@ -10,9 +15,10 @@ class Course(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, null= True, blank = True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    category = models.CharField(max_length=100,  null = True, blank = True)
+    category = models.ForeignKey(Subject, on_delete = models.CASCADE, related_name = 'course_subject')
     level = models.CharField(max_length=50, null = True, blank = True)
     duration = models.IntegerField(default=2)
+    passing_score = models.IntegerField(default=70)
     thumbnail = models.ImageField(upload_to='course_thumbnails/', null=True, blank=True)
     is_published = models.BooleanField(default=False)
     ratings = models.ManyToManyField(settings.AUTH_USER_MODEL, through='CourseRating', related_name='rated_courses')

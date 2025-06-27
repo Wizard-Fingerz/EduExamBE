@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from courses.subjects.serializers import SubjectSerializer
 from .models import Exam, Question, Choice, ExamAttempt, Answer
 from courses.serializers import CourseSerializer
 
@@ -29,7 +31,7 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
         return question
 
 class ExamSerializer(serializers.ModelSerializer):
-    course = CourseSerializer(read_only=True)
+    subject = SubjectSerializer(read_only=True)
     questions = QuestionSerializer(many=True, read_only=True)
     
     class Meta:
@@ -39,13 +41,13 @@ class ExamSerializer(serializers.ModelSerializer):
 class ExamCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Exam
-        fields = ('title', 'description', 'duration', 'total_marks', 'passing_marks',
-                 'start_time', 'end_time', 'is_published', 'course')
+        fields = ('title', 'description', 'duration', 'total_marks', 'passing_marks', 'examination_type', 'year',
+                 'start_time', 'end_time', 'is_published', 'subject')
 
 class StaffExamCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Exam
-        fields = ('title', 'description', 'duration', 'total_marks', 'passing_marks',
+        fields = ('title', 'description', 'duration', 'total_marks', 'passing_marks', 'examination_type', 'year',
                  'start_time', 'end_time', 'is_published')
 
 class AnswerSerializer(serializers.ModelSerializer):

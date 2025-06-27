@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
-from .models import User
+from .models import User, ExaminationType
 
 class UserResource(resources.ModelResource):
     class Meta:
@@ -35,3 +35,4 @@ class CustomUserAdmin(ImportExportModelAdmin, UserAdmin):
             'fields': ('username', 'email', 'password1', 'password2', 'user_type'),
         }),
     )
+

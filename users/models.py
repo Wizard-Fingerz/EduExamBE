@@ -14,6 +14,15 @@ class User(AbstractUser):
     date_of_birth = models.DateField(null=True, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
     address = models.TextField(max_length=200, blank=True)
+    institution_name = models.CharField(max_length=255, blank=True)
+    examination_type = models.ForeignKey('ExaminationType', null=True, blank=True, on_delete=models.SET_NULL)
+    grade = models.CharField(max_length=50, blank=True)
     
     def __str__(self):
         return f"{self.username} ({self.get_user_type_display()})"
+
+class ExaminationType(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name

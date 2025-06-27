@@ -47,7 +47,7 @@ class LessonProgressAdmin(ImportExportModelAdmin):
 class ExamProgressAdmin(ImportExportModelAdmin):
     resource_class = ExamProgressResource
     list_display = ('student', 'exam', 'best_score', 'last_attempt')
-    list_filter = ('exam__course',)
+    list_filter = ('exam__subject',)
     search_fields = ('student__username', 'exam__title')
     ordering = ('-updated_at',)
     raw_id_fields = ('student', 'exam')

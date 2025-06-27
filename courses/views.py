@@ -1,9 +1,12 @@
 from django.shortcuts import render, get_object_or_404
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
+
+from courses.subjects.models import Subject
+from courses.subjects.serializers import SubjectSerializer
 from .models import Course, Module, Lesson, CourseEnrollment, Assignment, AssignmentQuestion, AssignmentChoice, AssignmentSubmission, AssignmentAnswer
 from .serializers import (
     CourseSerializer, CourseCreateSerializer,
@@ -340,6 +343,16 @@ class CourseStudentsView(APIView):
             })
         except Course.DoesNotExist:
             return Response({'error': 'Course not found'}, status=404)
+
+
+class StaffSubjectViewSet(generics.ListAPIView):
+    queryset = Subject.objects.all()
+    serializer_class = SubjectSerializer
+    permission_classes = (permissions.AllowAny,)
+
+    
+    def get_queryset(self):
+        return Subject.objects.all()
 
 class CourseAnalyticsView(APIView):
     permission_classes = [permissions.IsAuthenticated]

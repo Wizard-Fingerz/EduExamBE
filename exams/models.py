@@ -1,13 +1,17 @@
 from django.db import models
 from django.conf import settings
 from courses.models import Course
+from courses.subjects.models import Subject
+from users.models import ExaminationType
 
 class Exam(models.Model):
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='exams')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='exams_subjects')
     title = models.CharField(max_length=200)
     description = models.TextField()
     duration = models.DurationField()
     total_marks = models.PositiveIntegerField()
+    examination_type = models.ForeignKey(ExaminationType, null=True, blank=True, on_delete=models.SET_NULL)
+    year = models.PositiveIntegerField()
     passing_marks = models.PositiveIntegerField()
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
@@ -16,7 +20,7 @@ class Exam(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"{self.course.title} - {self.title}"
+        return f"{self.subject.title} - {self.title}"
 
 class Question(models.Model):
     QUESTION_TYPES = (
