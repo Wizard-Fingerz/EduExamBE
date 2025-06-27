@@ -35,6 +35,7 @@ class UserProfileUpdateView(generics.UpdateAPIView):
         return self.request.user
     
     def update(self, request, *args, **kwargs):
+        print(self.request.data)
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -118,11 +119,10 @@ class StaffDashboardStatsView(APIView):
         total_courses = Course.objects.filter(instructor=request.user).count()
         
         # Get total exams
-        total_exams = Exam.objects.filter(course__instructor=request.user).count()
+        total_exams = Exam.objects.all().count()
         
         # Get active exams
         active_exams = Exam.objects.filter(
-            course__instructor=request.user,
             is_published=True
         ).count()
         

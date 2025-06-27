@@ -3,6 +3,8 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
+
+from courses.subjects.models import Subject
 from .models import Exam, Question, ExamAttempt, Answer
 from .serializers import (
     ExamSerializer, ExamCreateSerializer,
@@ -31,10 +33,10 @@ class ExamListView(generics.ListCreateAPIView):
             return Exam.objects.none()
         if hasattr(user, 'user_type'):
             if user.user_type == 'teacher':
-                return Exam.objects.filter(course__instructor=user)
+                return Exam.objects.all()
             elif user.user_type == 'student':
                 # Only exams for courses the student is enrolled in
-                return Exam.objects.filter(course__students=user)
+                return Exam.objects.filter(examination_type=user.examination_type)
         return Exam.objects.none()
     
     def get_serializer_class(self):
@@ -64,9 +66,9 @@ class ExamDetailView(generics.RetrieveUpdateDestroyAPIView):
             
         user = self.request.user
         if user.user_type == 'teacher':
-            return Exam.objects.filter(course__instructor=user)
+            return Exam.objects.all()
         elif user.user_type == 'student':
-            return Exam.objects.filter(course__students=user)
+            return Exam.objects.filter(examination_type=user.examination_type)
         return Exam.objects.none()
 
 class ExamCreateView(generics.CreateAPIView):
@@ -76,7 +78,14 @@ class ExamCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         if self.request.user.user_type != 'teacher':
             raise PermissionDenied("Only teachers can create exams.")
-        serializer.save(course_id=self.kwargs['course_id'])
+        subject_id = self.request.data.get('subject')
+        if not subject_id:
+            raise PermissionDenied("Subject ID is required.")
+        try:
+            subject = Subject.objects.get(pk=subject_id)
+        except Subject.DoesNotExist:
+            raise PermissionDenied("Subject not found.")
+        serializer.save(subject=subject)
 
 class ExamUpdateView(generics.UpdateAPIView):
     serializer_class = ExamCreateSerializer
@@ -111,8 +120,6 @@ class QuestionListView(generics.ListCreateAPIView):
         # Handle both 'pk' and 'exam_id' URL parameters
         exam_id = self.kwargs.get('pk') or self.kwargs.get('exam_id')
         exam = Exam.objects.get(id=exam_id)
-        if exam.course.instructor != self.request.user:
-            raise permissions.PermissionDenied("Only the course instructor can add questions.")
         serializer.save(exam=exam)
 
 class QuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -131,10 +138,7 @@ class ExamAttemptView(generics.CreateAPIView):
     
     def perform_create(self, serializer):
         exam = Exam.objects.get(id=self.kwargs['pk'])
-        if exam.course.students.filter(id=self.request.user.id).exists():
-            serializer.save(student=self.request.user, exam=exam)  # Pass exam here
-        else:
-            raise permissions.PermissionDenied("You are not enrolled in this course.")
+        serializer.save(student=self.request.user, exam=exam)  # Pass exam here
 
 class ExamAttemptDetailView(generics.RetrieveAPIView):
     serializer_class = ExamAttemptSerializer
@@ -160,9 +164,7 @@ class StaffExamListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if self.request.user.user_type != 'teacher':
-            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
-        return Exam.objects.filter(course__instructor=self.request.user)
+        return Exam.objects.all()
 
 class StaffExamDetailView(generics.RetrieveAPIView):
     serializer_class = ExamSerializer
@@ -170,7 +172,7 @@ class StaffExamDetailView(generics.RetrieveAPIView):
 
     def get_object(self):
         exam = get_object_or_404(Exam, pk=self.kwargs['pk'])
-        if self.request.user.user_type != 'teacher' or exam.course.instructor != self.request.user:
+        if self.request.user.user_type != 'teacher':
             return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
         return exam
 
@@ -182,20 +184,18 @@ class StaffExamCreateView(generics.CreateAPIView):
         if self.request.user.user_type != 'teacher':
             raise PermissionDenied("Only teachers can create exams.")
         
-        course_id = self.request.data.get('course')
-        if not course_id:
+        subject_id = self.request.data.get('subject')
+        if not subject_id:
             raise PermissionDenied("Course ID is required.")
         
         try:
-            course = Course.objects.get(pk=course_id)
-        except Course.DoesNotExist:
+            subject = Subject.objects.get(pk=subject_id)
+        except Subject.DoesNotExist:
             raise PermissionDenied("Course not found.")
         
-        if course.instructor != self.request.user:
-            raise PermissionDenied("You can only create exams for your own courses.")
         
         # Save the exam with the course
-        serializer.save(course=course)
+        serializer.save(subject=subject)
 
 class StaffExamUpdateView(generics.UpdateAPIView):
     serializer_class = ExamSerializer
