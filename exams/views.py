@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, pagination
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
@@ -20,9 +20,28 @@ from django.db.models import Avg, Count
 
 # Create your views here.
 
+class CustomPagination(pagination.PageNumberPagination):
+    page_size = 12
+    page_size_query_param = 'page_size'
+    max_page_size = 12
+
+    def get_paginated_response(self, data):
+        return Response({
+            'count': self.page.paginator.count,
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'num_pages': self.page.paginator.num_pages,
+            'page_size': self.page_size,
+            'current_page': self.page.number,
+            'results': data
+        })
+
+
+
 class ExamListView(generics.ListCreateAPIView):
     serializer_class = ExamSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination  # <-- Add this line
     
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -103,6 +122,7 @@ class ExamDeleteView(generics.DestroyAPIView):
 class QuestionListView(generics.ListCreateAPIView):
     serializer_class = QuestionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination  # <-- Add this line
     
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -162,6 +182,7 @@ class ExamSubmissionView(generics.CreateAPIView):
 class StaffExamListView(generics.ListAPIView):
     serializer_class = ExamSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination  # <-- Add this line
 
     def get_queryset(self):
         return Exam.objects.all().order_by('-year')

@@ -15,7 +15,7 @@ from exams.models import Exam, Question, Choice
 from users.models import ExaminationType
 
 BASE_URL = 'https://nigerianscholars.com'
-BASE_PATH = '/past-questions/biology/jamb/year/2023/'
+BASE_PATH = '/past-questions/biology/jamb/year/2019/'
 page = 5
 
 headers = {
@@ -66,17 +66,17 @@ for q in questions:
 
 print(f'Scraping complete! Total questions scraped: {len(questions)}')
 
-subject, _ = Subject.objects.get_or_create(name="English")
+subject, _ = Subject.objects.get_or_create(name="Biology")
 exam, _ = Exam.objects.get_or_create(
     subject=subject,
-    title="JAMB 2023 English",
+    title="JAMB 2019 Biology",
     examination_type = ExaminationType.objects.get(name = 'JAMB'),
     
     defaults={
-        "description": "JAMB 2023 English Questions",
+        "description": "JAMB 2019 Biology Questions",
         "duration": timezone.timedelta(seconds=3600),  # 1 hour
         "total_marks": 100,
-        "year": 2023,
+        "year": 2019,
         "passing_marks": 40,
         "start_time": timezone.now(),
         "end_time": timezone.now() + timezone.timedelta(hours=1),
