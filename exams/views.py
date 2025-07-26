@@ -33,10 +33,10 @@ class ExamListView(generics.ListCreateAPIView):
             return Exam.objects.none()
         if hasattr(user, 'user_type'):
             if user.user_type == 'teacher':
-                return Exam.objects.all()
+                return Exam.objects.all().order_by('-year')  # Order by year descending
             elif user.user_type == 'student':
                 # Only exams for courses the student is enrolled in
-                return Exam.objects.filter(examination_type=user.examination_type)
+                return Exam.objects.filter(examination_type=user.examination_type).order_by('-year')
         return Exam.objects.none()
     
     def get_serializer_class(self):
@@ -66,9 +66,9 @@ class ExamDetailView(generics.RetrieveUpdateDestroyAPIView):
             
         user = self.request.user
         if user.user_type == 'teacher':
-            return Exam.objects.all()
+            return Exam.objects.all().order_by('-year')
         elif user.user_type == 'student':
-            return Exam.objects.filter(examination_type=user.examination_type)
+            return Exam.objects.filter(examination_type=user.examination_type).order_by('-year')
         return Exam.objects.none()
 
 class ExamCreateView(generics.CreateAPIView):
@@ -164,7 +164,7 @@ class StaffExamListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Exam.objects.all()
+        return Exam.objects.all().order_by('-year')
 
 class StaffExamDetailView(generics.RetrieveAPIView):
     serializer_class = ExamSerializer
