@@ -20,7 +20,7 @@ class Exam(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"{self.subject.title} - {self.title}"
+        return f"{self.subject.name} - {self.title}"
 
 class Question(models.Model):
     QUESTION_TYPES = (
