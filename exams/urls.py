@@ -22,4 +22,6 @@ urlpatterns = [
     path('staff/<int:pk>/analytics/', views.StaffExamAnalyticsView.as_view(), name='staff-exam-analytics'),
     path('staff/<int:pk>/questions/', views.QuestionListView.as_view(), name='staff-question-list'),
     path('staff/questions/<int:pk>/', views.QuestionDetailView.as_view(), name='staff-question-detail'),
+
+    path('scrape-questions/', views.ScrapeQuestionsAPIView.as_view(), name='scrape-questions'),
 ] 

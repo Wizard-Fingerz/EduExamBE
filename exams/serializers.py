@@ -80,3 +80,10 @@ class ExamSubmissionSerializer(serializers.Serializer):
             raise serializers.ValidationError("All questions must be answered.")
         
         return data
+    
+
+class ScrapeQuestionsSerializer(serializers.Serializer):
+    subject = serializers.CharField()
+    year = serializers.IntegerField()
+    pages = serializers.IntegerField()
+    slug = serializers.CharField()
